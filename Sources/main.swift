@@ -53,6 +53,44 @@ enum System {
     static func sleepNow() { run("/usr/bin/pmset", ["sleepnow"]) }
 }
 
+// MARK: - Faces
+
+enum Mood { case asleep, smirk }
+
+/// A line-drawn face. Template images take the menu bar's or the view's color.
+func faceImage(_ mood: Mood, size: CGFloat, line: CGFloat) -> NSImage {
+    let image = NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
+        let s = rect.width
+        func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * s, y: y * s) }
+        NSColor.black.setStroke()
+
+        let head = NSBezierPath(ovalIn: rect.insetBy(dx: line / 2 + 0.5, dy: line / 2 + 0.5))
+        head.lineWidth = line
+        head.stroke()
+
+        let f = NSBezierPath()
+        f.lineWidth = line
+        f.lineCapStyle = .round
+        switch mood {
+        case .asleep:
+            // Closed eyes and a tiny relaxed mouth.
+            f.move(to: p(0.27, 0.43)); f.curve(to: p(0.43, 0.43), controlPoint1: p(0.30, 0.52), controlPoint2: p(0.40, 0.52))
+            f.move(to: p(0.57, 0.43)); f.curve(to: p(0.73, 0.43), controlPoint1: p(0.60, 0.52), controlPoint2: p(0.70, 0.52))
+            f.move(to: p(0.45, 0.68)); f.line(to: p(0.55, 0.68))
+        case .smirk:
+            // One raised brow, heavy-lidded eyes, a lopsided grin.
+            f.move(to: p(0.56, 0.29)); f.line(to: p(0.73, 0.23))
+            f.move(to: p(0.28, 0.45)); f.line(to: p(0.43, 0.45))
+            f.move(to: p(0.57, 0.42)); f.line(to: p(0.72, 0.42))
+            f.move(to: p(0.37, 0.65)); f.curve(to: p(0.71, 0.56), controlPoint1: p(0.50, 0.71), controlPoint2: p(0.65, 0.70))
+        }
+        f.stroke()
+        return true
+    }
+    image.isTemplate = true
+    return image
+}
+
 // MARK: - State
 
 final class Controller: ObservableObject {
@@ -234,6 +272,8 @@ struct PanelView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(controller.isOn ? "Don't stop" : "DontStopClaude")
                     .font(.system(size: 17, weight: .medium))
+                    .lineLimit(1)
+                    .fixedSize()
                 Text(controller.statusText)
                     .font(.system(size: 12, weight: .light))
                     .foregroundColor(.secondary)
@@ -248,9 +288,7 @@ struct PanelView: View {
                 .controlSize(.large)
                 .labelsHidden()
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-        .glass(cornerRadius: 22)
+        .padding(.horizontal, 4)
     }
 
     private var face: some View {
@@ -262,9 +300,17 @@ struct PanelView: View {
                 .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .opacity(controller.isOn ? 1 : 0)
-            Text(controller.isOn ? "😏" : "😴")
-                .font(.system(size: 24))
-                .scaleEffect(controller.isOn && breathe ? 1.08 : 1)
+            Image(nsImage: faceImage(controller.isOn ? .smirk : .asleep, size: 30, line: 2))
+                .renderingMode(.template)
+                .foregroundColor(controller.isOn ? .accentColor : .secondary)
+                .scaleEffect(controller.isOn && breathe ? 1.06 : 1)
+            if !controller.isOn {
+                Text("z")
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundColor(.secondary)
+                    .offset(x: 20, y: breathe ? -26 : -16)
+                    .opacity(breathe ? 0 : 0.9)
+            }
         }
         .frame(width: 50, height: 50)
         .onAppear {
@@ -368,15 +414,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = nil
-        let face = controller.isOn ? "😏" : "😴"
+        button.image = faceImage(controller.isOn ? .smirk : .asleep, size: 17, line: 1.4)
+        button.imagePosition = .imageLeading
         let left = controller.remaining.map { " " + $0 } ?? ""
-        let title = NSMutableAttributedString(string: face, attributes: [.font: NSFont.systemFont(ofSize: 14)])
-        title.append(NSAttributedString(string: left, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .light),
-            .baselineOffset: 1,
-        ]))
-        button.attributedTitle = title
+        button.attributedTitle = NSAttributedString(string: left, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
+        ])
         button.toolTip = "DontStopClaude: " + controller.statusText
     }
 }

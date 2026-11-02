@@ -12,13 +12,26 @@ Open **Terminal**, paste this, and press Return:
 curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.sh | bash
 ```
 
-Enter your Mac password when asked. That's it. A 😴 appears in your menu bar.
+Enter your Mac password when asked. That's it. A sleepy face appears in your menu bar.
 
 > If it says you need **Command Line Tools**, run `xcode-select --install`, click Install, then paste the command again.
 
+### Or have your AI agent do it
+
+Paste this into Claude Code, Codex, Cursor or any agent that can run commands on your Mac:
+
+```
+Install DontStopClaude on my Mac. Run this in Terminal:
+curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.sh | bash
+If it says Command Line Tools are missing, run xcode-select --install,
+wait for it to finish, then run the install command again.
+It will ask for my password, so let me type it. Tell me when the
+sleepy face shows up in my menu bar.
+```
+
 ## Use
 
-1. Click the 😴 in the menu bar.
+1. Click the sleepy face in the menu bar.
 2. Pick how long Claude can go:
 
    | | |
@@ -31,7 +44,7 @@ Enter your Mac password when asked. That's it. A 😴 appears in your menu bar.
 
 3. Close the lid.
 
-It turns into a 😏 and shows the time left.
+The face starts smirking and shows the time left. A ring around it counts down.
 
 ## It stops on its own when
 
