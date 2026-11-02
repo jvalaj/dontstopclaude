@@ -1,49 +1,47 @@
 # DontStopClaude
 
-A tiny menu bar app that keeps your Mac awake **with the lid closed**, so Claude (or any long build, download or render) keeps running while your laptop is in your bag.
+Close your MacBook lid. Claude keeps working.
 
-Closing a MacBook's lid puts it to sleep, and every running job stops. Keep-awake apps like `caffeinate` only stop *idle* sleep. DontStopClaude stops lid sleep too, and turns it back off on its own.
+Normally, closing the lid puts your Mac to sleep and Claude stops mid-task. DontStopClaude is a menu bar switch that keeps the Mac awake with the lid closed, then turns normal sleep back on by itself.
 
 ## Install
 
-Paste this into Terminal:
+Open **Terminal**, paste this, and press Return:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.sh | bash
 ```
 
-It builds the app on your Mac (needs Apple's Command Line Tools, `xcode-select --install`), puts it in `~/Applications`, and opens it at login. You'll be asked for your password once.
+Enter your Mac password when asked. That's it. A 😴 appears in your menu bar.
+
+> If it says you need **Command Line Tools**, run `xcode-select --install`, click Install, then paste the command again.
 
 ## Use
 
-Click the moon in the menu bar. Flip **Don't stop** on, or tap how long Claude can go:
+1. Click the 😴 in the menu bar.
+2. Pick how long Claude can go:
 
-| | |
-|---|---|
-| **1h** | A quickie |
-| **2h** | Just warming up |
-| **4h** | Stamina |
-| **8h** | All night long |
-| **∞** | Don't. Stop. |
+   | | |
+   |---|---|
+   | **1h** | A quickie |
+   | **2h** | Just warming up |
+   | **4h** | Stamina |
+   | **8h** | All night long |
+   | **∞** | Don't. Stop. |
 
-The moon turns into a flame and shows the time left. Close the lid.
+3. Close the lid.
 
-On macOS 26 the panel uses Liquid Glass.
+It turns into a 😏 and shows the time left.
 
-It turns normal sleep back on when:
-- the time runs out,
-- the battery drops below 10% while unplugged, or
-- you flip it off or choose **I'm done** (quit).
+## It stops on its own when
 
-If the lid is closed when time runs out, it puts the Mac to sleep.
+- the time runs out
+- the battery drops below 10%
+- you flip the switch off, or click **I'm done**
 
-## Be careful with heat
+## Heads up
 
-A closed laptop in a bag has little airflow. Use the laptop sleeve, don't pack clothes around it, and keep it out of the sun and hot cars.
-
-## How it works
-
-It runs `pmset -a disablesleep 1` (and `0` to undo). The installer adds a rule in `/etc/sudoers.d/dontstopclaude` that lets your user run only those two commands without a password.
+A closed laptop in a bag gets warm. Use the laptop sleeve and keep it out of hot cars.
 
 ## Uninstall
 
@@ -51,6 +49,10 @@ It runs `pmset -a disablesleep 1` (and `0` to undo). The installer adds a rule i
 curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/uninstall.sh | bash
 ```
 
-## License
+## How it works
 
-MIT
+It runs `pmset -a disablesleep 1` to keep the Mac awake and `pmset -a disablesleep 0` to undo it. The installer lets your account run just those two commands without a password, so the switch works with one click.
+
+Requires macOS 11 or later. Liquid Glass on macOS 26.
+
+MIT License

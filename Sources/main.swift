@@ -182,33 +182,24 @@ struct PanelView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 22) {
             hero
             durations
             footer
         }
-        .padding(14)
-        .frame(width: 310)
+        .padding(20)
+        .frame(width: 340)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: controller.isOn)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: controller.hours)
     }
 
     private var hero: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(controller.isOn ? Color.accentColor : Color.primary.opacity(0.1))
-                Image(systemName: controller.isOn ? "flame.fill" : "moon.zzz.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(controller.isOn ? .white : .primary)
-            }
-            .frame(width: 40, height: 40)
-
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(controller.isOn ? "Don't stop" : "DontStopClaude")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 17, weight: .medium))
                 Text(controller.statusText)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12, weight: .light))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
@@ -220,35 +211,36 @@ struct PanelView: View {
                 .controlSize(.large)
                 .labelsHidden()
         }
-        .padding(12)
-        .glass(cornerRadius: 18)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .glass(cornerRadius: 22)
     }
 
     private var durations: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("How long can Claude go?")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundColor(.secondary)
                 Spacer()
                 Text(tease)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .light))
                     .foregroundColor(controller.isOn ? .accentColor : .secondary)
             }
             .padding(.horizontal, 4)
 
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(options) { option in
                     let selected = controller.hours == option.hours
                     Button(action: { controller.start(hours: option.hours) }) {
                         Text(option.label)
-                            .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                            .font(.system(size: 14, weight: selected ? .medium : .light))
                             .foregroundColor(selected && controller.isOn ? .white : .primary)
-                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .frame(maxWidth: .infinity, minHeight: 38)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .glass(cornerRadius: 10, tint: pillTint(selected), interactive: true)
+                    .glass(cornerRadius: 12, tint: pillTint(selected), interactive: true)
                     .help(option.tease)
                 }
             }
@@ -262,14 +254,13 @@ struct PanelView: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            Image(systemName: "battery.25")
             Text("Taps out at 10% battery")
             Spacer()
             Button("I'm done") { NSApp.terminate(nil) }
                 .buttonStyle(PlainButtonStyle())
                 .help("Quit, and let the Mac sleep again")
         }
-        .font(.system(size: 11))
+        .font(.system(size: 11, weight: .light))
         .foregroundColor(.secondary)
         .padding(.horizontal, 4)
     }
@@ -290,7 +281,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.action = #selector(togglePopover(_:))
             button.target = self
-            button.imagePosition = .imageLeading
         }
 
         controller.onChange = { [weak self] in self?.updateStatusItem() }
@@ -313,17 +303,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        let name = controller.isOn ? "flame.fill" : "moon.zzz"
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: "DontStopClaude")
-        image?.isTemplate = true
-        button.image = image
-
-        if let left = controller.remaining {
-            button.title = " " + left
-            button.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-        } else {
-            button.title = ""
-        }
+        button.image = nil
+        let face = controller.isOn ? "😏" : "😴"
+        let left = controller.remaining.map { " " + $0 } ?? ""
+        let title = NSMutableAttributedString(string: face, attributes: [.font: NSFont.systemFont(ofSize: 14)])
+        title.append(NSAttributedString(string: left, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .light),
+            .baselineOffset: 1,
+        ]))
+        button.attributedTitle = title
         button.toolTip = "DontStopClaude: " + controller.statusText
     }
 }
