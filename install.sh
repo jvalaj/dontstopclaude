@@ -40,7 +40,7 @@ cat > "$build/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
-  <key>LSMinimumSystemVersion</key><string>11.0</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>LSUIElement</key><true/>
 </dict></plist>
 PLIST
@@ -75,4 +75,4 @@ launchctl unload "$AGENT" 2>/dev/null || true
 launchctl load "$AGENT" 2>/dev/null || open "$APP_DIR"
 
 echo ""
-echo "✓ DontStopClaude is in your menu bar (the keyhole). Click it and flip Don't stop on."
+echo "✓ DontStopClaude is in your menu bar (the padlock). Click it and flip Don't stop on."

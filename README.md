@@ -12,7 +12,7 @@ Open **Terminal**, paste this, and press Return:
 curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.sh | bash
 ```
 
-Enter your Mac password when asked. That's it. A keyhole appears in your menu bar.
+Enter your Mac password when asked. That's it. A padlock appears in your menu bar.
 
 > If it says you need **Command Line Tools**, run `xcode-select --install`, click Install, then paste the command again.
 
@@ -26,12 +26,12 @@ curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.
 If it says Command Line Tools are missing, run xcode-select --install,
 wait for it to finish, then run the install command again.
 It will ask for my password, so let me type it. Tell me when the
-keyhole shows up in my menu bar.
+padlock shows up in my menu bar.
 ```
 
 ## Use
 
-1. Click the keyhole in the menu bar.
+1. Click the padlock in the menu bar.
 2. Pick how long Claude can go:
 
    | | |
@@ -66,6 +66,6 @@ curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/uninstal
 
 It runs `pmset -a disablesleep 1` to keep the Mac awake and `pmset -a disablesleep 0` to undo it. The installer lets your account run just those two commands without a password, so the switch works with one click.
 
-Requires macOS 11 or later. Liquid Glass on macOS 26.
+Requires macOS 12 or later. Liquid Glass on macOS 26.
 
 MIT License

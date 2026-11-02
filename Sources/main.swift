@@ -55,7 +55,7 @@ enum System {
 
 // MARK: - Key and lock art
 
-/// A key lying on its side: round bow on the left, teeth at the tip on the right.
+/// A key lying flat, pointing right: round bow, shaft, two teeth near the tip.
 struct KeyShape: Shape {
     func path(in r: CGRect) -> Path {
         var p = Path()
@@ -63,10 +63,24 @@ struct KeyShape: Shape {
         p.addEllipse(in: CGRect(x: r.minX, y: r.minY, width: h, height: h))
         p.move(to: CGPoint(x: r.minX + h, y: r.midY))
         p.addLine(to: CGPoint(x: r.maxX, y: r.midY))
-        p.move(to: CGPoint(x: r.maxX - 2, y: r.midY))
-        p.addLine(to: CGPoint(x: r.maxX - 2, y: r.midY + h * 0.4))
-        p.move(to: CGPoint(x: r.maxX - 6, y: r.midY))
-        p.addLine(to: CGPoint(x: r.maxX - 6, y: r.midY + h * 0.3))
+        p.move(to: CGPoint(x: r.maxX - 3, y: r.midY))
+        p.addLine(to: CGPoint(x: r.maxX - 3, y: r.midY + h * 0.45))
+        p.move(to: CGPoint(x: r.maxX - 7, y: r.midY))
+        p.addLine(to: CGPoint(x: r.maxX - 7, y: r.midY + h * 0.32))
+        return p
+    }
+}
+
+/// The padlock's arched shackle.
+struct ShackleShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.midY))
+        p.addCurve(to: CGPoint(x: r.maxX, y: r.midY),
+                   control1: CGPoint(x: r.minX, y: r.minY - r.height * 0.3),
+                   control2: CGPoint(x: r.maxX, y: r.minY - r.height * 0.3))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
         return p
     }
 }
@@ -75,43 +89,55 @@ struct KeyShape: Shape {
 struct KeyholeShape: Shape {
     func path(in r: CGRect) -> Path {
         var p = Path()
-        let d = r.width * 0.62
-        p.addEllipse(in: CGRect(x: r.midX - d / 2, y: r.minY, width: d, height: d))
-        p.move(to: CGPoint(x: r.midX - d * 0.22, y: r.minY + d * 0.7))
-        p.addLine(to: CGPoint(x: r.midX + d * 0.22, y: r.minY + d * 0.7))
-        p.addLine(to: CGPoint(x: r.midX + r.width * 0.36, y: r.maxY))
-        p.addLine(to: CGPoint(x: r.midX - r.width * 0.36, y: r.maxY))
+        let d = r.width
+        p.addEllipse(in: CGRect(x: r.minX, y: r.minY, width: d, height: d))
+        p.move(to: CGPoint(x: r.midX - d * 0.2, y: r.minY + d * 0.7))
+        p.addLine(to: CGPoint(x: r.midX + d * 0.2, y: r.minY + d * 0.7))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
         p.closeSubpath()
         return p
     }
 }
 
-/// Menu bar icon: a keyhole, with the key in it when on.
-func lockImage(on: Bool, size: CGFloat) -> NSImage {
-    let image = NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
-        let s = rect.width
+/// One loop of the key: slides in, jolts the lock, slides out. Returns (0...1 how far in, 0...1 jolt).
+func keyMotion(at time: TimeInterval, period: Double = 0.9) -> (inset: Double, jolt: Double) {
+    let phase = time.truncatingRemainder(dividingBy: period) / period
+    func ease(_ x: Double) -> Double { x * x * (3 - 2 * x) }
+    if phase < 0.38 { return (ease(phase / 0.38), 0) }                       // in
+    if phase < 0.55 { return (1, sin((phase - 0.38) / 0.17 * .pi)) }        // jolt
+    return (1 - ease((phase - 0.55) / 0.45), 0)                              // out
+}
+
+/// Menu bar icon: a padlock, with the key going in when on.
+func lockImage(on: Bool, inserted: Bool, size: CGFloat) -> NSImage {
+    let image = NSImage(size: NSSize(width: size * 1.5, height: size), flipped: true) { rect in
+        let s = rect.height
+        func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * s, y: y * s) }
         NSColor.black.set()
+        let line = max(1.2, s * 0.09)
 
-        // Keyhole on the right.
-        let kx = s * 0.70, top = s * 0.22, d = s * 0.26
-        let hole = NSBezierPath(ovalIn: NSRect(x: kx - d / 2, y: top, width: d, height: d))
-        hole.move(to: NSPoint(x: kx - d * 0.22, y: top + d * 0.7))
-        hole.line(to: NSPoint(x: kx + d * 0.22, y: top + d * 0.7))
-        hole.line(to: NSPoint(x: kx + s * 0.15, y: s * 0.78))
-        hole.line(to: NSPoint(x: kx - s * 0.15, y: s * 0.78))
-        hole.close()
-        hole.fill()
+        // Padlock on the right: shackle, then a body with the keyhole cut out.
+        let shackle = NSBezierPath()
+        shackle.move(to: p(0.86, 0.48)); shackle.line(to: p(0.86, 0.30))
+        shackle.curve(to: p(1.24, 0.30), controlPoint1: p(0.86, 0.06), controlPoint2: p(1.24, 0.06))
+        shackle.line(to: p(1.24, 0.48))
+        shackle.lineWidth = line
+        shackle.stroke()
 
-        // Key on the left: inserted when on, resting apart when off.
-        let line = max(1.2, s * 0.08)
-        let tip = on ? kx : s * 0.50
-        let y = on ? s * 0.42 : s * 0.58
-        let bow = s * 0.24
-        let key = NSBezierPath(ovalIn: NSRect(x: tip - s * 0.62, y: y - bow / 2, width: bow, height: bow))
-        key.move(to: NSPoint(x: tip - s * 0.62 + bow, y: y))
-        key.line(to: NSPoint(x: tip, y: y))
-        key.move(to: NSPoint(x: tip - s * 0.10, y: y))
-        key.line(to: NSPoint(x: tip - s * 0.10, y: y + s * 0.10))
+        let body = NSBezierPath(roundedRect: NSRect(x: 0.76 * s, y: 0.46 * s, width: 0.58 * s, height: 0.46 * s),
+                                xRadius: 0.08 * s, yRadius: 0.08 * s)
+        body.append(NSBezierPath(ovalIn: NSRect(x: 0.99 * s, y: 0.56 * s, width: 0.12 * s, height: 0.12 * s)))
+        body.append(NSBezierPath(rect: NSRect(x: 1.025 * s, y: 0.64 * s, width: 0.05 * s, height: 0.16 * s)))
+        body.windingRule = .evenOdd
+        body.fill()
+
+        // Key on the left, pointing right into the lock.
+        let tip: CGFloat = !on ? 0.50 : (inserted ? 0.96 : 0.66)
+        let y: CGFloat = 0.69
+        let bow: CGFloat = 0.26
+        let key = NSBezierPath(ovalIn: NSRect(x: (tip - 0.62) * s, y: (y - bow / 2) * s, width: bow * s, height: bow * s))
+        key.move(to: p(tip - 0.62 + bow, y)); key.line(to: p(min(tip, 0.76), y))
         key.lineWidth = line
         key.lineCapStyle = .round
         key.stroke()
@@ -330,17 +356,36 @@ struct PanelView: View {
                 .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .opacity(controller.isOn ? 1 : 0)
-            ZStack {
-                KeyShape()
-                    .stroke(style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                    .frame(width: 24, height: 8)
-                    .offset(x: controller.isOn ? (breathe ? -5 : -13) : -15,
-                            y: controller.isOn ? 0 : 7)
-                    .rotationEffect(.degrees(controller.isOn ? 0 : -18))
-                KeyholeShape()
-                    .frame(width: 9, height: 14)
-                    .offset(x: 9)
-                    .scaleEffect(controller.isOn && breathe ? 1.08 : 1, anchor: .center)
+            TimelineView(.animation(paused: !controller.isOn)) { timeline in
+                let motion = controller.isOn
+                    ? keyMotion(at: timeline.date.timeIntervalSinceReferenceDate)
+                    : (inset: 0.0, jolt: 0.0)
+                ZStack {
+                    // Key first, so it slides in behind the lock body and disappears into it.
+                    KeyShape()
+                        .stroke(style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                        .frame(width: 24, height: 9)
+                        .offset(x: controller.isOn ? -13 + 13 * motion.inset : -17,
+                                y: controller.isOn ? 4 : 9)
+                        .rotationEffect(.degrees(controller.isOn ? 0 : -14))
+
+                    ZStack {
+                        ShackleShape()
+                            .stroke(style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                            .frame(width: 11, height: 9)
+                            .offset(y: -9)
+                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                            .frame(width: 18, height: 15)
+                            .offset(y: 3)
+                        KeyholeShape()
+                            .fill(Color(NSColor.windowBackgroundColor))
+                            .frame(width: 4.5, height: 8)
+                            .offset(y: 3)
+                    }
+                    .offset(x: 10)
+                    .rotationEffect(.degrees(4 * motion.jolt))
+                    .scaleEffect(1 + 0.1 * motion.jolt)
+                }
             }
             .foregroundColor(controller.isOn ? .accentColor : .secondary)
             if !controller.isOn {
@@ -418,6 +463,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private var host: NSHostingController<PanelView>!
+    private var frameTimer: Timer?
+    private var keyIn = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         popover.behavior = .transient
@@ -433,6 +480,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller.onChange = { [weak self] in self?.updateStatusItem() }
         updateStatusItem()
+
+        // While it's on, the menu bar key goes in and out.
+        frameTimer = Timer.scheduledTimer(withTimeInterval: 0.45, repeats: true) { [weak self] _ in
+            guard let self = self, self.controller.isOn else { return }
+            self.keyIn.toggle()
+            self.statusItem.button?.image = lockImage(on: true, inserted: self.keyIn, size: 16)
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -453,7 +507,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = lockImage(on: controller.isOn, size: 18)
+        button.image = lockImage(on: controller.isOn, inserted: keyIn, size: 16)
         button.imagePosition = .imageLeading
         let left = controller.remaining.map { " " + $0 } ?? ""
         button.attributedTitle = NSAttributedString(string: left, attributes: [
