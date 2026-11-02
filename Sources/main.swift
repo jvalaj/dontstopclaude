@@ -53,38 +53,68 @@ enum System {
     static func sleepNow() { run("/usr/bin/pmset", ["sleepnow"]) }
 }
 
-// MARK: - Faces
+// MARK: - Key and lock art
 
-enum Mood { case asleep, smirk }
+/// A key lying on its side: round bow on the left, teeth at the tip on the right.
+struct KeyShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let h = r.height
+        p.addEllipse(in: CGRect(x: r.minX, y: r.minY, width: h, height: h))
+        p.move(to: CGPoint(x: r.minX + h, y: r.midY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.midY))
+        p.move(to: CGPoint(x: r.maxX - 2, y: r.midY))
+        p.addLine(to: CGPoint(x: r.maxX - 2, y: r.midY + h * 0.4))
+        p.move(to: CGPoint(x: r.maxX - 6, y: r.midY))
+        p.addLine(to: CGPoint(x: r.maxX - 6, y: r.midY + h * 0.3))
+        return p
+    }
+}
 
-/// A line-drawn face. Template images take the menu bar's or the view's color.
-func faceImage(_ mood: Mood, size: CGFloat, line: CGFloat) -> NSImage {
+/// A classic keyhole: a circle over a flared slot.
+struct KeyholeShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let d = r.width * 0.62
+        p.addEllipse(in: CGRect(x: r.midX - d / 2, y: r.minY, width: d, height: d))
+        p.move(to: CGPoint(x: r.midX - d * 0.22, y: r.minY + d * 0.7))
+        p.addLine(to: CGPoint(x: r.midX + d * 0.22, y: r.minY + d * 0.7))
+        p.addLine(to: CGPoint(x: r.midX + r.width * 0.36, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.midX - r.width * 0.36, y: r.maxY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Menu bar icon: a keyhole, with the key in it when on.
+func lockImage(on: Bool, size: CGFloat) -> NSImage {
     let image = NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
         let s = rect.width
-        func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * s, y: y * s) }
-        NSColor.black.setStroke()
+        NSColor.black.set()
 
-        let head = NSBezierPath(ovalIn: rect.insetBy(dx: line / 2 + 0.5, dy: line / 2 + 0.5))
-        head.lineWidth = line
-        head.stroke()
+        // Keyhole on the right.
+        let kx = s * 0.70, top = s * 0.22, d = s * 0.26
+        let hole = NSBezierPath(ovalIn: NSRect(x: kx - d / 2, y: top, width: d, height: d))
+        hole.move(to: NSPoint(x: kx - d * 0.22, y: top + d * 0.7))
+        hole.line(to: NSPoint(x: kx + d * 0.22, y: top + d * 0.7))
+        hole.line(to: NSPoint(x: kx + s * 0.15, y: s * 0.78))
+        hole.line(to: NSPoint(x: kx - s * 0.15, y: s * 0.78))
+        hole.close()
+        hole.fill()
 
-        let f = NSBezierPath()
-        f.lineWidth = line
-        f.lineCapStyle = .round
-        switch mood {
-        case .asleep:
-            // Closed eyes and a tiny relaxed mouth.
-            f.move(to: p(0.27, 0.43)); f.curve(to: p(0.43, 0.43), controlPoint1: p(0.30, 0.52), controlPoint2: p(0.40, 0.52))
-            f.move(to: p(0.57, 0.43)); f.curve(to: p(0.73, 0.43), controlPoint1: p(0.60, 0.52), controlPoint2: p(0.70, 0.52))
-            f.move(to: p(0.45, 0.68)); f.line(to: p(0.55, 0.68))
-        case .smirk:
-            // One raised brow, heavy-lidded eyes, a lopsided grin.
-            f.move(to: p(0.56, 0.29)); f.line(to: p(0.73, 0.23))
-            f.move(to: p(0.28, 0.45)); f.line(to: p(0.43, 0.45))
-            f.move(to: p(0.57, 0.42)); f.line(to: p(0.72, 0.42))
-            f.move(to: p(0.37, 0.65)); f.curve(to: p(0.71, 0.56), controlPoint1: p(0.50, 0.71), controlPoint2: p(0.65, 0.70))
-        }
-        f.stroke()
+        // Key on the left: inserted when on, resting apart when off.
+        let line = max(1.2, s * 0.08)
+        let tip = on ? kx : s * 0.50
+        let y = on ? s * 0.42 : s * 0.58
+        let bow = s * 0.24
+        let key = NSBezierPath(ovalIn: NSRect(x: tip - s * 0.62, y: y - bow / 2, width: bow, height: bow))
+        key.move(to: NSPoint(x: tip - s * 0.62 + bow, y: y))
+        key.line(to: NSPoint(x: tip, y: y))
+        key.move(to: NSPoint(x: tip - s * 0.10, y: y))
+        key.line(to: NSPoint(x: tip - s * 0.10, y: y + s * 0.10))
+        key.lineWidth = line
+        key.lineCapStyle = .round
+        key.stroke()
         return true
     }
     image.isTemplate = true
@@ -300,10 +330,19 @@ struct PanelView: View {
                 .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .opacity(controller.isOn ? 1 : 0)
-            Image(nsImage: faceImage(controller.isOn ? .smirk : .asleep, size: 30, line: 2))
-                .renderingMode(.template)
-                .foregroundColor(controller.isOn ? .accentColor : .secondary)
-                .scaleEffect(controller.isOn && breathe ? 1.06 : 1)
+            ZStack {
+                KeyShape()
+                    .stroke(style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .frame(width: 24, height: 8)
+                    .offset(x: controller.isOn ? (breathe ? -5 : -13) : -15,
+                            y: controller.isOn ? 0 : 7)
+                    .rotationEffect(.degrees(controller.isOn ? 0 : -18))
+                KeyholeShape()
+                    .frame(width: 9, height: 14)
+                    .offset(x: 9)
+                    .scaleEffect(controller.isOn && breathe ? 1.08 : 1, anchor: .center)
+            }
+            .foregroundColor(controller.isOn ? .accentColor : .secondary)
             if !controller.isOn {
                 Text("z")
                     .font(.system(size: 11, weight: .light))
@@ -314,9 +353,9 @@ struct PanelView: View {
         }
         .frame(width: 50, height: 50)
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) { breathe = true }
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) { breathe = true }
         }
-        .help(controller.isOn ? "Ring shows the time left" : "Asleep")
+        .help(controller.isOn ? "Ring shows the time left" : "Locked out")
     }
 
     private var durations: some View {
@@ -414,7 +453,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = faceImage(controller.isOn ? .smirk : .asleep, size: 17, line: 1.4)
+        button.image = lockImage(on: controller.isOn, size: 18)
         button.imagePosition = .imageLeading
         let left = controller.remaining.map { " " + $0 } ?? ""
         button.attributedTitle = NSAttributedString(string: left, attributes: [
