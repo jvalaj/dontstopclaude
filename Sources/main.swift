@@ -65,6 +65,16 @@ final class Controller: ObservableObject {
     var onChange: (() -> Void)?
     private var ticker: Timer?
 
+    /// When the current hold began, for the running total.
+    private var sessionStart: Date? {
+        get { UserDefaults.standard.object(forKey: "sessionStart") as? Date }
+        set { UserDefaults.standard.set(newValue, forKey: "sessionStart") }
+    }
+    private var totalSeconds: Double {
+        get { UserDefaults.standard.double(forKey: "totalSeconds") }
+        set { UserDefaults.standard.set(newValue, forKey: "totalSeconds") }
+    }
+
     var isOn: Bool { endDate != nil }
 
     init() {
@@ -77,7 +87,10 @@ final class Controller: ObservableObject {
         let disabled = System.isSleepDisabled()
         if endDate != nil && !disabled { setEnd(nil) }
         // Sleep was turned off some other way (e.g. by hand in Terminal): show it, so it can be turned off here.
-        if endDate == nil && disabled { setEnd(.distantFuture) }
+        if endDate == nil && disabled {
+            sessionStart = Date()
+            setEnd(.distantFuture)
+        }
 
         ticker = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             self?.tick()
@@ -89,11 +102,16 @@ final class Controller: ObservableObject {
         UserDefaults.standard.set(h, forKey: "hours")
         guard System.setSleepDisabled(true) else { return }
         now = Date()
+        if sessionStart == nil { sessionStart = now }
         setEnd(h == 0 ? .distantFuture : now.addingTimeInterval(Double(h) * 3600))
     }
 
     func turnOff() {
         _ = System.setSleepDisabled(false)
+        if let started = sessionStart {
+            totalSeconds += max(0, Date().timeIntervalSince(started))
+            sessionStart = nil
+        }
         setEnd(nil)
     }
 
@@ -124,9 +142,24 @@ final class Controller: ObservableObject {
     }
 
     var statusText: String {
-        guard isOn else { return "Close the lid and Claude stops. Lame." }
-        if let left = remaining { return "Claude's still going · \(left) left" }
-        return "Claude's going all night"
+        guard isOn else { return "Lid down, Claude stops" }
+        if let left = remaining { return "Still going · \(left) left" }
+        return "Going all night"
+    }
+
+    /// How much of the hold is left, 0...1. Unlimited shows a full ring.
+    var progress: Double {
+        guard let end = endDate else { return 0 }
+        if end == .distantFuture || hours == 0 { return 1 }
+        return min(1, max(0, end.timeIntervalSince(now) / (Double(hours) * 3600)))
+    }
+
+    /// Lifetime time kept awake, including the current hold.
+    var stamina: String {
+        var secs = totalSeconds
+        if let started = sessionStart { secs += max(0, now.timeIntervalSince(started)) }
+        let total = Int(secs), h = total / 3600, m = (total % 3600) / 60
+        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
 }
 
@@ -161,6 +194,7 @@ extension View {
 
 struct PanelView: View {
     @ObservedObject var controller: Controller
+    @State private var breathe = false
 
     private let options = [
         Option(hours: 1, label: "1h", tease: "A quickie"),
@@ -194,7 +228,9 @@ struct PanelView: View {
     }
 
     private var hero: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
+            face
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(controller.isOn ? "Don't stop" : "DontStopClaude")
                     .font(.system(size: 17, weight: .medium))
@@ -202,6 +238,7 @@ struct PanelView: View {
                     .font(.system(size: 12, weight: .light))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
+                    .fixedSize()
             }
 
             Spacer(minLength: 8)
@@ -214,6 +251,26 @@ struct PanelView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .glass(cornerRadius: 22)
+    }
+
+    private var face: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 3)
+            Circle()
+                .trim(from: 0, to: CGFloat(controller.progress))
+                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .opacity(controller.isOn ? 1 : 0)
+            Text(controller.isOn ? "😏" : "😴")
+                .font(.system(size: 24))
+                .scaleEffect(controller.isOn && breathe ? 1.08 : 1)
+        }
+        .frame(width: 50, height: 50)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) { breathe = true }
+        }
+        .help(controller.isOn ? "Ring shows the time left" : "Asleep")
     }
 
     private var durations: some View {
@@ -253,8 +310,11 @@ struct PanelView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 6) {
-            Text("Taps out at 10% battery")
+        HStack(alignment: .bottom, spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Total stamina: \(controller.stamina)")
+                Text("Taps out at 10% battery")
+            }
             Spacer()
             Button("I'm done") { NSApp.terminate(nil) }
                 .buttonStyle(PlainButtonStyle())
@@ -272,11 +332,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = Controller()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
+    private var host: NSHostingController<PanelView>!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         popover.behavior = .transient
         popover.animates = true
-        popover.contentViewController = NSHostingController(rootView: PanelView(controller: controller))
+        host = NSHostingController(rootView: PanelView(controller: controller))
+        if #available(macOS 13.0, *) { host.sizingOptions = [.preferredContentSize] }
+        popover.contentViewController = host
 
         if let button = statusItem.button {
             button.action = #selector(togglePopover(_:))
@@ -296,6 +359,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popover.performClose(sender)
         } else {
             controller.now = Date()
+            host.view.layoutSubtreeIfNeeded()
+            popover.contentSize = host.view.fittingSize
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
