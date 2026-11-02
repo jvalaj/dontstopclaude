@@ -19,7 +19,12 @@ fi
 echo "→ Downloading"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-curl -fsSL "https://raw.githubusercontent.com/$REPO/main/Sources/main.swift" -o "$tmp/main.swift"
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+if [ -n "$here" ] && [ -f "$here/Sources/main.swift" ]; then
+  cp "$here/Sources/main.swift" "$tmp/main.swift"   # running from a checkout
+else
+  curl -fsSL "https://raw.githubusercontent.com/$REPO/main/Sources/main.swift?$(date +%s)" -o "$tmp/main.swift"
+fi
 
 echo "→ Building"
 build="$tmp/DontStopClaude.app"
