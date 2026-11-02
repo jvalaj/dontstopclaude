@@ -53,125 +53,22 @@ enum System {
     static func sleepNow() { run("/usr/bin/pmset", ["sleepnow"]) }
 }
 
-// MARK: - Key and lock art
+// MARK: - Lock symbol
 
-/// Heart outline in a unit square, scaled into `r`.
-func heartPath(in r: CGRect) -> Path {
-    func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * r.width, y: r.minY + y * r.height) }
-    var path = Path()
-    path.move(to: p(0.5, 1.0))
-    path.addCurve(to: p(0.0, 0.34), control1: p(0.14, 0.78), control2: p(0.0, 0.58))
-    path.addCurve(to: p(0.5, 0.20), control1: p(0.0, 0.02), control2: p(0.40, -0.02))
-    path.addCurve(to: p(1.0, 0.34), control1: p(0.60, -0.02), control2: p(1.0, 0.02))
-    path.addCurve(to: p(0.5, 1.0), control1: p(1.0, 0.58), control2: p(0.86, 0.78))
-    path.closeSubpath()
-    return path
-}
-
-/// A key lying flat, pointing right: heart-shaped bow, shaft, two teeth.
-struct KeyShape: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = heartPath(in: CGRect(x: r.minX, y: r.minY, width: r.height * 1.05, height: r.height))
-        p.addRect(CGRect(x: r.minX + r.height * 0.95, y: r.midY - 1.1, width: r.width - r.height * 0.95, height: 2.2))
-        p.addRect(CGRect(x: r.maxX - 4, y: r.midY, width: 2.4, height: r.height * 0.42))
-        p.addRect(CGRect(x: r.maxX - 8, y: r.midY, width: 2.4, height: r.height * 0.30))
-        return p
-    }
-}
-
-/// The lock's arched shackle.
-struct ShackleShape: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: r.maxY))
-        p.addLine(to: CGPoint(x: r.minX, y: r.minY + r.width / 2))
-        p.addCurve(to: CGPoint(x: r.maxX, y: r.minY + r.width / 2),
-                   control1: CGPoint(x: r.minX, y: r.minY - r.width * 0.15),
-                   control2: CGPoint(x: r.maxX, y: r.minY - r.width * 0.15))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-        return p
-    }
-}
-
-/// A heart-shaped lock with a keyhole cut out of it. Fill with `eoFill: true`.
-struct HeartLockShape: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = heartPath(in: r)
-        let d = r.width * 0.24
-        let cx = r.midX, top = r.minY + r.height * 0.34
-        p.addEllipse(in: CGRect(x: cx - d / 2, y: top, width: d, height: d))
-        p.addRoundedRect(in: CGRect(x: cx - d * 0.22, y: top + d * 0.6, width: d * 0.44, height: d * 1.15),
-                         cornerSize: CGSize(width: d * 0.22, height: d * 0.22))
-        return p
-    }
-}
-
-/// One loop of the key: slides in, jolts the lock, slides out. Returns (0...1 how far in, 0...1 jolt).
-func keyMotion(at time: TimeInterval, period: Double = 0.9) -> (inset: Double, jolt: Double) {
-    let phase = time.truncatingRemainder(dividingBy: period) / period
-    func ease(_ x: Double) -> Double { x * x * (3 - 2 * x) }
-    if phase < 0.38 { return (ease(phase / 0.38), 0) }                       // in
-    if phase < 0.55 { return (1, sin((phase - 0.38) / 0.17 * .pi)) }        // jolt
-    return (1 - ease((phase - 0.55) / 0.45), 0)                              // out
-}
-
-/// Menu bar icon: an open heart lock when off; shut, with the key going in, when on.
-func lockImage(on: Bool, inserted: Bool, size: CGFloat) -> NSImage {
-    let width = on ? size * 1.6 : size * 0.9
-    let image = NSImage(size: NSSize(width: width, height: size), flipped: true) { rect in
-        let s = rect.height
-        func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * s, y: y * s) }
-        NSColor.black.set()
-        let line = max(1.3, s * 0.10)
-
-        // Heart lock (right side when on, alone when off).
-        let hx: CGFloat = on ? 0.74 : 0.06, hy: CGFloat = 0.34, hw: CGFloat = 0.76, hh: CGFloat = 0.64
-        func h(_ x: CGFloat, _ y: CGFloat) -> NSPoint { p(hx + x * hw, hy + y * hh) }
-
-        // Shackle: shut, or lifted with one leg out.
-        let left = hx + 0.26 * hw, right = hx + 0.74 * hw
-        let shackle = NSBezierPath()
-        if on {
-            shackle.move(to: p(left, hy + 0.12)); shackle.line(to: p(left, 0.20))
-            shackle.curve(to: p(right, 0.20), controlPoint1: p(left, 0.02), controlPoint2: p(right, 0.02))
-            shackle.line(to: p(right, hy + 0.12))
+extension View {
+    /// Apple's own lock/unlock morph on macOS 14+.
+    @ViewBuilder
+    func lockMorph() -> some View {
+        #if compiler(>=5.9)
+        if #available(macOS 14.0, *) {
+            self.contentTransition(.symbolEffect(.replace))
         } else {
-            shackle.move(to: p(left - 0.06, 0.24)); shackle.line(to: p(left - 0.02, 0.12))
-            shackle.curve(to: p(right, 0.08), controlPoint1: p(left + 0.02, -0.06), controlPoint2: p(right, -0.08))
-            shackle.line(to: p(right, hy + 0.12))
+            self
         }
-        shackle.lineWidth = line
-        shackle.lineCapStyle = .round
-        shackle.stroke()
-
-        let heart = NSBezierPath()
-        heart.move(to: h(0.5, 1.0))
-        heart.curve(to: h(0.0, 0.34), controlPoint1: h(0.14, 0.78), controlPoint2: h(0.0, 0.58))
-        heart.curve(to: h(0.5, 0.20), controlPoint1: h(0.0, 0.02), controlPoint2: h(0.40, -0.02))
-        heart.curve(to: h(1.0, 0.34), controlPoint1: h(0.60, -0.02), controlPoint2: h(1.0, 0.02))
-        heart.curve(to: h(0.5, 1.0), controlPoint1: h(1.0, 0.58), controlPoint2: h(0.86, 0.78))
-        heart.close()
-        let d = 0.26 * hw
-        heart.append(NSBezierPath(ovalIn: NSRect(x: (hx + 0.5 * hw - d / 2) * s, y: (hy + 0.32 * hh) * s, width: d * s, height: d * s)))
-        heart.append(NSBezierPath(rect: NSRect(x: (hx + 0.5 * hw - d * 0.22) * s, y: (hy + 0.32 * hh + d * 0.6) * s,
-                                               width: d * 0.44 * s, height: d * 1.0 * s)))
-        heart.windingRule = .evenOdd
-        heart.fill()
-
-        // Key, only when on: points right into the lock.
-        if on {
-            let y = hy + 0.42 * hh
-            let tip: CGFloat = inserted ? hx + 0.30 : hx - 0.10
-            let bow: CGFloat = 0.28
-            let key = NSBezierPath(ovalIn: NSRect(x: (tip - 0.62) * s, y: (y - bow / 2) * s, width: bow * s, height: bow * s))
-            key.move(to: p(tip - 0.62 + bow, y)); key.line(to: p(min(tip, hx + 0.02), y))
-            key.lineWidth = line
-            key.stroke()
-        }
-        return true
+        #else
+        self
+        #endif
     }
-    image.isTemplate = true
-    return image
 }
 
 // MARK: - State
@@ -315,7 +212,6 @@ extension View {
 
 struct PanelView: View {
     @ObservedObject var controller: Controller
-    @State private var breathe = false
 
     private let options = [
         Option(hours: 1, label: "1h", tease: "A quickie"),
@@ -383,47 +279,13 @@ struct PanelView: View {
                 .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .opacity(controller.isOn ? 1 : 0)
-            TimelineView(.animation(paused: !controller.isOn)) { timeline in
-                let motion = controller.isOn
-                    ? keyMotion(at: timeline.date.timeIntervalSinceReferenceDate)
-                    : (inset: 0.0, jolt: 0.0)
-                ZStack {
-                    // Key first, so it slides in behind the heart and disappears into it.
-                    KeyShape()
-                        .frame(width: 24, height: 10)
-                        .offset(x: -16 + 13 * motion.inset, y: 3)
-                        .opacity(controller.isOn ? 1 : 0)
-
-                    ZStack {
-                        // Shackle: shut when on, sprung open like Apple's unlock when off.
-                        ShackleShape()
-                            .stroke(style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                            .frame(width: 11, height: 10)
-                            .rotationEffect(.degrees(controller.isOn ? 0 : -28), anchor: .bottomTrailing)
-                            .offset(y: controller.isOn ? -12 : -16)
-                        HeartLockShape()
-                            .fill(style: FillStyle(eoFill: true))
-                            .frame(width: 22, height: 20)
-                    }
-                    .offset(x: controller.isOn ? 9 : 0, y: 2)
-                    .rotationEffect(.degrees(4 * motion.jolt))
-                    .scaleEffect(1 + 0.12 * motion.jolt)
-                }
-            }
-            .foregroundColor(controller.isOn ? .accentColor : .secondary)
-            if !controller.isOn {
-                Text("z")
-                    .font(.system(size: 11, weight: .light))
-                    .foregroundColor(.secondary)
-                    .offset(x: 24, y: breathe ? -30 : -20)
-                    .opacity(breathe ? 0 : 0.9)
-            }
+            Image(systemName: controller.isOn ? "lock.fill" : "lock.open.fill")
+                .font(.system(size: 24, weight: .regular))
+                .foregroundColor(controller.isOn ? .accentColor : .secondary)
+                .lockMorph()
         }
         .frame(width: 64, height: 64)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) { breathe = true }
-        }
-        .help(controller.isOn ? "Ring shows the time left" : "Unlocked: Claude stops when the lid closes")
+        .help(controller.isOn ? "Locked in. The ring shows the time left." : "Unlocked: Claude stops when the lid closes")
     }
 
     private var durations: some View {
@@ -483,11 +345,9 @@ struct PanelView: View {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = Controller()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let popover = NSPopover()
     private var host: NSHostingController<PanelView>!
-    private var frameTimer: Timer?
-    private var keyIn = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         popover.behavior = .transient
@@ -503,13 +363,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller.onChange = { [weak self] in self?.updateStatusItem() }
         updateStatusItem()
-
-        // While it's on, the menu bar key goes in and out.
-        frameTimer = Timer.scheduledTimer(withTimeInterval: 0.45, repeats: true) { [weak self] _ in
-            guard let self = self, self.controller.isOn else { return }
-            self.keyIn.toggle()
-            self.statusItem.button?.image = lockImage(on: true, inserted: self.keyIn, size: 16)
-        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -530,12 +383,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = lockImage(on: controller.isOn, inserted: keyIn, size: 16)
-        button.imagePosition = .imageLeading
-        let left = controller.remaining.map { " " + $0 } ?? ""
-        button.attributedTitle = NSAttributedString(string: left, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
-        ])
+        let image = NSImage(systemSymbolName: controller.isOn ? "lock.fill" : "lock.open.fill",
+                            accessibilityDescription: "DontStopClaude")
+        image?.isTemplate = true
+        button.image = image
+        button.title = ""
         button.toolTip = "DontStopClaude: " + controller.statusText
     }
 }

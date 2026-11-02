@@ -12,7 +12,7 @@ Open **Terminal**, paste this, and press Return:
 curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.sh | bash
 ```
 
-Enter your Mac password when asked. That's it. A heart lock appears in your menu bar.
+Enter your Mac password when asked. That's it. A lock appears in your menu bar.
 
 > If it says you need **Command Line Tools**, run `xcode-select --install`, click Install, then paste the command again.
 
@@ -26,12 +26,12 @@ curl -fsSL https://raw.githubusercontent.com/jvalaj/dontstopclaude/main/install.
 If it says Command Line Tools are missing, run xcode-select --install,
 wait for it to finish, then run the install command again.
 It will ask for my password, so let me type it. Tell me when the
-heart lock shows up in my menu bar.
+lock shows up in my menu bar.
 ```
 
 ## Use
 
-1. Click the heart lock in the menu bar.
+1. Click the lock in the menu bar.
 2. Pick how long Claude can go:
 
    | | |
@@ -44,7 +44,7 @@ heart lock shows up in my menu bar.
 
 3. Close the lid.
 
-The key slides into the lock and doesn't stop. A ring around it counts down the time left.
+The lock snaps shut. A ring around it counts down the time left.
 
 ## It stops on its own when
 

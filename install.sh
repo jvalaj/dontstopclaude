@@ -75,4 +75,4 @@ launchctl unload "$AGENT" 2>/dev/null || true
 launchctl load "$AGENT" 2>/dev/null || open "$APP_DIR"
 
 echo ""
-echo "✓ DontStopClaude is in your menu bar (the heart lock). Click it and flip Don't stop on."
+echo "✓ DontStopClaude is in your menu bar (the lock). Click it and flip Don't stop on."
